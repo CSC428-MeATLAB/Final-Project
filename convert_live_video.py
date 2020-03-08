@@ -3,7 +3,7 @@ import numpy as np
 import time
 
 # Minimim area threshold that is boxed
-AREA_THRESHHOLD = 1000
+AREA_THRESHHOLD = 100
 
 # Number of frames to skip to calculate the box
 FRAME_SKIP_COUNT = 2
@@ -29,7 +29,7 @@ def box_image(img: np.array):
 
     # Generating the mask that outlines the plants
     # Method 1: Look for the color green
-    mask1 = cv2.inRange(hsv, (30, 30, 30), (70, 255,255))
+    mask1 = cv2.inRange(hsv, (100, 20, 20), (150, 255, 255))
     # Method 2
 
     # Take the mask and clean up the holes in the mask
@@ -62,6 +62,7 @@ rect_list = []
 while(cap.isOpened()):
     # Capture frame-by-frame
     ret, frame = cap.read()
+    frame = cv2.imread('test.jpg') # FOR TESTING
     if ret == True:
         # t0 = time.time()
         count = count + 1
