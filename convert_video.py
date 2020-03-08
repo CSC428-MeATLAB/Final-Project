@@ -24,7 +24,7 @@ cv2.namedWindow(WINDOW_TITLE, cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO)
 cv2.resizeWindow(WINDOW_TITLE, 1500,1000)
 
 # Create a VideoCapture object and read from input file
-cap = cv2.VideoCapture('no-bot.mp4')
+cap = cv2.VideoCapture('bot-no-effects-720p.mp4')
 
 # Load in a blue note template
 template = cv2.imread("notecenter.png", cv2.IMREAD_GRAYSCALE)
@@ -70,21 +70,11 @@ def box_image(img: np.array):
 
     # Crop image
     crop_img = img[top_bound:bottom_bound , left_bound:right_bound]
-
-    print(str((right_bound - left_bound) / 1080.0)+ " " +str((bottom_bound - top_bound) / 720.0))
-
-    # Scale it to uniform size
-    # resize_img = cv2.resize(crop_img,
-    #                    (int(1280/img.shape[0] * crop_img.shape[0]) , int(720/img.shape[1] * crop_img.shape[1]) ),
-    #                    0, 
-    #                    0, 
-    #                    interpolation=cv2.INTER_NEAREST)
-
     gray_img = cv2.cvtColor(crop_img, cv2.COLOR_BGR2GRAY)
     result = cv2.matchTemplate(gray_img, template, cv2.TM_CCOEFF_NORMED)
 
     # Filter down to points were sure about
-    loc = np.where(result >= 0.7)
+    loc = np.where(result >= 0.8)
     loc = nonMaxSupp(loc, result)
 
     # Add all the points to an array
@@ -92,7 +82,7 @@ def box_image(img: np.array):
         subimg = gray_img[pt[1] + int(.33 * temp_h) : pt[1] + int(.66 * temp_h) , pt[0] + int(.33 * temp_w) : pt[0] + int(.66 * temp_w)]
         center_shade = np.average(np.average(subimg, axis=0), axis=0)
         # Make sure the center of the note is white (so we dont detect the bottom bar) 
-        if (center_shade > 200):
+        if (center_shade > 190):
             rect_list.append((pt[0] + left_bound, pt[1] + top_bound, temp_w, temp_h))
 
     return rect_list
@@ -121,7 +111,7 @@ while(cap.isOpened()):
 
         for rects in rect_list:
             x, y, w, h = rects
-            cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 1)
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 3)
 
         # Display the resulting frame
         cv2.imshow(WINDOW_TITLE,frame)
