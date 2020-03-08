@@ -7,12 +7,22 @@ import math
 import cv2 as cv
 import numpy as np
 
+# color ranges of targets
+color_ranges = [
+    [np.array([-4,127,77]), np.array([4,255,190])],
+    [np.array([26,127,77]), np.array([36,255,190])],
+    [np.array([14,127,68]), np.array([20,255,198])],
+    [np.array([54,127,63]), np.array([64,255,198])],
+    [np.array([102,127,77]), np.array([109,255,190])]
+]
+
 def main(argv):
     
     default_file = 'sudoku.png'
     filename = argv[0] if len(argv) > 0 else default_file
     # Loads an image
     im_bgr = cv.imread(cv.samples.findFile(filename))
+    dimensions = im_bgr.shape
 
     # Check if image is loaded fine
     if im_bgr is None:
@@ -29,53 +39,64 @@ def main(argv):
     cdstP = cv.cvtColor(dst, cv.COLOR_GRAY2BGR)
 
     linesP = cv.HoughLinesP(dst, 1, np.pi / 180, 60, None, 100, 10)
+    # throw out horizontal lines
+    isVertical = np.abs(linesP[:,0:,0] - linesP[:,0:,2]) < np.abs(linesP[:,0:,1] - linesP[:,0:,3])
+    linesP = linesP[isVertical]
 
-    color_ranges = [
-        [np.array([-4,127,77]), np.array([4,255,190])],
-        [np.array([26,127,77]), np.array([36,255,190])],
-        [np.array([14,127,68]), np.array([20,255,198])],
-        [np.array([54,127,63]), np.array([64,255,198])],
-        [np.array([102,127,77]), np.array([109,255,190])]
-    ]
+    lines = []
+    line_start_y = 0
+    line_end_y = dimensions[0]
     for color_range in color_ranges:
-        blob, stats = find_blob(im_hsv, color_range[0], color_range[1])
+        target, stats = find_target(im_hsv, color_range[0], color_range[1])
         [x, y, w, h, a] = stats
         cv.rectangle(cdstP, (x, y), (x+w, y+h), (0, 255, 0), 3)
-        blob[1] -= h / 2
+        target[1] -= h / 2
 
-        l = linesP[0][0]
-        closestD = min(
-            (l[0]-blob[0])**2 + (l[1]-blob[1])**2,
-            (l[2]-blob[0])**2 + (l[3]-blob[1])**2,
-        )
-        closestLine = l
-        for i in range(1, len(linesP)):
-            l = linesP[i][0]
-            d = min(
-                (l[0]-blob[0])**2 + (l[1]-blob[1])**2,
-                (l[2]-blob[0])**2 + (l[3]-blob[1])**2,
-            )
-            if d < closestD:
-                closestD = d
-                closestLine = l
+        line = find_closest_line(target, linesP)
+        # make sure lower point comes first
+        if line[1] < line[3]:
+            line = np.roll(line, 2)
+        
+        line_start_y += y - h
+        if line[3] < line_end_y:
+            line_end_y = line[3]
 
-        l = closestLine
-        cv.line(cdstP, (l[0], l[1]), (l[2], l[3]), (0,0,255), 3, cv.LINE_AA)
+        lines.append(line)
+
+    line_start_y = line_start_y / len(lines)
+
+    # adjust lines to only cover string
+    for line in lines:
+        ys = line[1] - line[3]
+        xs = line[0] - line[2]
+        t = (line_start_y - line[1]) / ys
+        line[0] = round(line[0] + xs * t)
+        line[1] = round(line_start_y)
+
+        t = (line_end_y - line[1]) / ys
+        line[2] = round(line[0] + xs * t)
+        line[3] = round(line_end_y)
     
-    if linesP is not None and False:
-        for i in range(0, len(linesP)):
-            l = linesP[i][0]
-            d = math.sqrt((l[0]-l[2])**2 + (l[1] - l[3])**2)
-            cv.line(cdstP, (l[0], l[1]), (l[2], l[3]), (0,0,255), 3, cv.LINE_AA)
+    for line in lines:
+        cv.line(cdstP, (line[0], line[1]), (line[2], line[3]), (0,0,255), 3, cv.LINE_AA)
+
     
     # cv.imshow("Source", src)
     cv.imwrite("canny.png", dst)
     cv.imwrite("houghp.png", cdstP)
     
-    cv.waitKey()
     return 0
 
-def find_blob(img, hsv_low, hsv_high):
+def find_closest_line(pt, lines):
+    dist2 = np.minimum(
+        (lines[:,0] - pt[0])**2 + (lines[:,1] - pt[1])**2,
+        (lines[:,2] - pt[0])**2 + (lines[:,3] - pt[1])**2
+    )
+    order = np.argsort(dist2)
+
+    return lines[order[0]]
+
+def find_target(img, hsv_low, hsv_high):
     if hsv_low[0] > hsv_high[0]:
         hsv_low_high = np.copy(hsv_low)
         hsv_low_high[1] = 180
