@@ -9,11 +9,11 @@ import numpy as np
 
 # color ranges of targets
 color_ranges = [
-    [np.array([-4,127,77]), np.array([4,255,190])],
-    [np.array([26,127,77]), np.array([36,255,190])],
-    [np.array([14,127,68]), np.array([20,255,198])],
-    [np.array([54,127,63]), np.array([64,255,198])],
-    [np.array([102,127,77]), np.array([109,255,190])]
+    [np.array([54,127,63]), np.array([64,255,198])],    # green
+    [np.array([-4,127,77]), np.array([4,255,190])],     # red
+    [np.array([26,127,77]), np.array([36,255,190])],    # yellow
+    [np.array([102,127,77]), np.array([109,255,190])],  # blue
+    [np.array([14,127,68]), np.array([20,255,198])]     # orange
 ]
 
 def main(argv):
@@ -57,7 +57,7 @@ def main(argv):
         if line[1] < line[3]:
             line = np.roll(line, 2)
         
-        line_start_y += y - h
+        line_start_y += y - h / 4 * 3
         if line[3] < line_end_y:
             line_end_y = line[3]
 
@@ -80,11 +80,29 @@ def main(argv):
     for line in lines:
         cv.line(cdstP, (line[0], line[1]), (line[2], line[3]), (0,0,255), 3, cv.LINE_AA)
 
-    
-    # cv.imshow("Source", src)
+    holding = cv.cvtColor(cv.imread("holding2.png"), cv.COLOR_BGR2HSV)
+
+    for i in range(len(lines)):
+        line = lines[i]
+        samples = []
+        for j in range(10):
+            t = j / 100
+            x = int(round(line[0] + t * (line[2] - line[0])))
+            y = int(round(line[1] + t * (line[3] - line[1])))
+            samples.append(holding[y,x])
+        samples = np.array(samples)
+        std = np.average(np.std(samples, axis=0))
+        avg = np.average(samples, axis=0)
+        if std < 10 and avg[1] > 100:
+            print("Held note detected: " + str(i))
+
+    for line in lines:
+        cv.line(holding, (line[0], line[1]), (line[2], line[3]), (0,0,255), 3, cv.LINE_AA)
+
+    cv.imwrite("test.png", holding)
     cv.imwrite("canny.png", dst)
     cv.imwrite("houghp.png", cdstP)
-    
+
     return 0
 
 def find_closest_line(pt, lines):
