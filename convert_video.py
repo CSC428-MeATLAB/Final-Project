@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
 import time
+import mss
+from pynput.keyboard import Key, Controller
 
 # Minimim area threshold that is boxed
 AREA_MIN_THRESHHOLD = 1000
@@ -10,13 +12,37 @@ AREA_MAX_THRESHOLD = 3000
 FRAME_SKIP_COUNT = 2
 
 # Control the framerate
-DELAY = 1/600
+DELAY = 1/600000
 
 # Title of the window
 WINDOW_TITLE = 'Video'
 
+# The Window Number to capture
+WINDOW_NUM = 2
+
+# Mode 0 - video, 1 - live
+MODE = 1
+
+# Create the controller object
+keyboard = Controller()
+
+# Keyboard to button matchings (Default)
+GREEN = 'a'
+RED = 's'
+YELLOW = 'j'
+BLUE = 'k'
+ORANGE = 'l'
+
+# Keep track of the delay between note presses
+NOTE_DURATION = 2
+G_DELAY = 0
+R_DELAY = 0
+Y_DELAY = 0
+B_DELAY = 0
+O_DELAY = 0
+
 # Percentage of screen to use for note detection
-CROP_WIDTH = .5
+CROP_WIDTH = .4
 CROP_HEIGHT = .35
 
 # Define Window settings
@@ -37,6 +63,13 @@ ham_temp_w, ham_temp_h = ham_template.shape[::-1]
 # Check if camera opened successfully
 if (cap.isOpened()== False): 
   print("Error opening video stream or file")
+
+# A key pressing function
+def press_key(key, release = False):
+    if(release):
+        keyboard.release(key)
+    else:
+        keyboard.press(key)
 
 # Do non max supp using 2n+1*2n+1 region
 def nonMaxSupp(pts, img):
@@ -108,27 +141,74 @@ def box_image(img: np.array):
 count = 0
 rect_list = []
 
+if MODE == 1:
+    sct = mss.mss()
+    mon = sct.monitors[WINDOW_NUM]
+
 # Read until video is completed
 while(cap.isOpened()):
     # Capture frame-by-frame
-    ret, frame = cap.read()
+    if MODE == 0:
+        ret, frame = cap.read()
+    if MODE == 1:
+        frame = np.array(sct.grab(mon))
+        ret = True
 
     frame = cv2.resize(frame,
-                (1280,720),
-                0, 
-                0, 
-                interpolation=cv2.INTER_NEAREST)
+        (1280,720),
+        0, 
+        0, 
+        interpolation=cv2.INTER_NEAREST)
+
 
     if ret == True:
-        # t0 = time.time()
+        
         count = count + 1
         if ((count % FRAME_SKIP_COUNT) == 0):
             rect_list = box_image(frame)
-        # t1 = time.time()
+        
+        G_DELAY -= 1
+        R_DELAY -= 1
+        Y_DELAY -= 1
+        B_DELAY -= 1
+        O_DELAY -= 1
 
         for rects in rect_list:
             x, y, w, h = rects
             cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 3)
+
+            # Green Notes
+            if (y < int(frame.shape[0] * 12.5/15) and frame.shape[1] *.30 <  x + w/2 < frame.shape[1] *.40 and G_DELAY < 1 ):
+                press_key(GREEN)
+                G_DELAY = NOTE_DURATION
+            elif (G_DELAY < 2):   
+                press_key(GREEN, True)
+            # Red Notes
+            if (y < int(frame.shape[0] * 12.5/15) and frame.shape[1] *.40 <  x + w/2 < frame.shape[1] *.45 and R_DELAY < 1 ):
+                press_key(RED)
+                R_DELAY = NOTE_DURATION
+            elif (R_DELAY < 2):   
+                press_key(RED, True)
+            # Yellow Notes
+            if (y < int(frame.shape[0] * 12.5/15) and frame.shape[1] *.45 <  x + w/2 < frame.shape[1] *.55 and Y_DELAY < 1 ):
+                press_key(YELLOW)
+                Y_DELAY = NOTE_DURATION
+            elif (Y_DELAY < 2):   
+                press_key(YELLOW, True)
+            # Blue Notes
+            if (y < int(frame.shape[0] * 12.5/15) and frame.shape[1] *.55 <  x + w/2 < frame.shape[1] *.60 and B_DELAY < 1 ):
+                press_key(BLUE)
+                B_DELAY = NOTE_DURATION
+            elif (B_DELAY < 2):   
+                press_key(BLUE, True)
+            # Orange Notes
+            if (y < int(frame.shape[0] * 12.5/15) and frame.shape[1] *.60 <  x + w/2 < frame.shape[1] *.70 and O_DELAY < 1 ):
+                press_key(ORANGE)
+                O_DELAY = NOTE_DURATION
+            elif (O_DELAY < 2):   
+                press_key(ORANGE, True)
+        
+
 
         # Display the resulting frame
         cv2.imshow(WINDOW_TITLE,frame)
