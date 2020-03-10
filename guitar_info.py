@@ -23,8 +23,11 @@ class GuitarInfo:
         self.targets = None     # [x, y] centroids of targets
         self.targetStats = None # [x, y, width, height, area] of targets
         self.detectedHolds = [False for _ in range(5)]
+        self.lastDetected = [-100 for _ in range(5)]
         self.keysDown = [False for _ in range(5)]
         self.keyboard = Controller()
+        self.count = 0
+        self.initiated = False
 
     # takes a BGR image
     # extracts info about target locations and guitar string lines
@@ -81,6 +84,8 @@ class GuitarInfo:
             line[2] = round(line[0] + xs * t)
             line[3] = round(line_end_y)
 
+        self.initiated = True
+
     def detectHolds(self, im_bgr):
         im_hsv = cv.cvtColor(im_bgr, cv.COLOR_BGR2HSV)
 
@@ -95,7 +100,11 @@ class GuitarInfo:
             samples = np.array(samples)
             std = np.average(np.std(samples, axis=0))
             avg = np.average(samples, axis=0)
-            self.detectedHolds[i] = std < self.stddevThreshold and avg[1] > self.saturationThreshold
+            if std < self.stddevThreshold and avg[1] > self.saturationThreshold:
+                self.lastDetected[i] = self.count
+                self.detectedHolds[i] = True
+            else:
+                self.detectedHolds[i] = False
 
     def _find_target(self, img, hsv_low, hsv_high):
         if hsv_low[0] > hsv_high[0]:
@@ -134,13 +143,11 @@ class GuitarInfo:
             if self.detectedHolds[i]:
                 if not self.keysDown[i]:
                     self.keysDown[i] = True
-                    self.keyboard.release(self.keys[i])
-                    print("Pressed " + self.keys[i])
+                    self.keyboard.press(self.keys[i])
             else:
-                if self.keysDown[i]:
+                if self.keysDown[i] and self.count - self.lastDetected[i] > 10:
                     self.keysDown[i] = False
                     self.keyboard.release(self.keys[i])
-                    print("Released " + self.keys[i])
 
     # draw debug info on a frame
     def drawDebug(self, img):

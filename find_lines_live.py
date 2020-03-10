@@ -13,9 +13,7 @@ WINDOW_TITLE = 'Video'
 cv2.namedWindow(WINDOW_TITLE, cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO)
 cv2.resizeWindow(WINDOW_TITLE, 1500,1000)
 
-# current frame counter
-count = 0
-guitarInfo = None
+guitar = GuitarInfo()
 
 if MODE == 0:
     sct = mss.mss()
@@ -34,15 +32,15 @@ while(isVideoOpen()):
     # Capture frame-by-frame
     ret, frame = readFrame()
     if ret == True:
-        count = count + 1            
+        guitar.count += 1
 
-        if ((count % FRAME_SKIP_COUNT) == 0):
-            if guitarInfo is not None:
-                guitarInfo.detectHolds(frame)
+        if ((guitar.count % FRAME_SKIP_COUNT) == 0):
+            if guitar.initiated:
+                guitar.detectHolds(frame)
 
-        if guitarInfo is not None:
-            guitarInfo.drawDebug(frame)
-            guitarInfo.updateKeys()
+        if guitar.initiated:
+            guitar.drawDebug(frame)
+            guitar.updateKeys()
 
         # Display the resulting frame
         cv2.imshow(WINDOW_TITLE,frame)
@@ -52,9 +50,7 @@ while(isVideoOpen()):
         if key == ord('q'):
             break
         if key == ord('l'):
-            if guitarInfo is None:
-                guitarInfo = GuitarInfo()
-            guitarInfo.extractInfo(frame)
+            guitar.extractInfo(frame)
             print("Found info")
 
     # Break the loop
@@ -62,7 +58,8 @@ while(isVideoOpen()):
         break
 
 # When everything done, release the video capture object
-cap.release()
+if MODE == 1:
+    cap.release()
 
 # Closes all the frames
 cv2.destroyAllWindows()
