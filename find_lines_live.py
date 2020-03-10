@@ -42,6 +42,7 @@ while(isVideoOpen()):
 
         if guitarInfo is not None:
             guitarInfo.drawDebug(frame)
+            guitarInfo.updateKeys()
 
         # Display the resulting frame
         cv2.imshow(WINDOW_TITLE,frame)

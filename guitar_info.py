@@ -1,5 +1,6 @@
 import cv2 as cv
 import numpy as np
+from pynput.keyboard import Controller
 
 # color ranges of targets
 color_ranges = [
@@ -15,12 +16,15 @@ class GuitarInfo:
     saturationThreshold = 100
     samples = 10
     tstep = 0.01
+    keys = ['a', 's', 'j', 'k', 'l']
 
     def __init__(self):
         self.lines = None       # [x1, y1, x2, y2]
         self.targets = None     # [x, y] centroids of targets
         self.targetStats = None # [x, y, width, height, area] of targets
-        self.detectedHolds = None
+        self.detectedHolds = [False for _ in range(5)]
+        self.keysDown = [False for _ in range(5)]
+        self.keyboard = Controller()
 
     # takes a BGR image
     # extracts info about target locations and guitar string lines
@@ -80,8 +84,7 @@ class GuitarInfo:
     def detectHolds(self, im_bgr):
         im_hsv = cv.cvtColor(im_bgr, cv.COLOR_BGR2HSV)
 
-        self.detectedHolds = []
-        for i in range(len(self.lines)):
+        for i in range(5):
             line = self.lines[i]
             samples = []
             for step in range(self.samples):
@@ -92,10 +95,7 @@ class GuitarInfo:
             samples = np.array(samples)
             std = np.average(np.std(samples, axis=0))
             avg = np.average(samples, axis=0)
-            if std < self.stddevThreshold and avg[1] > self.saturationThreshold:
-                self.detectedHolds.append(i)
-
-        return self.detectedHolds
+            self.detectedHolds[i] = std < self.stddevThreshold and avg[1] > self.saturationThreshold
 
     def _find_target(self, img, hsv_low, hsv_high):
         if hsv_low[0] > hsv_high[0]:
@@ -129,11 +129,24 @@ class GuitarInfo:
 
         return lines[order[0]]
 
+    def updateKeys(self):
+        for i in range(5):
+            if self.detectedHolds[i]:
+                if not self.keysDown[i]:
+                    self.keysDown[i] = True
+                    self.keyboard.release(self.keys[i])
+                    print("Pressed " + self.keys[i])
+            else:
+                if self.keysDown[i]:
+                    self.keysDown[i] = False
+                    self.keyboard.release(self.keys[i])
+                    print("Released " + self.keys[i])
+
     # draw debug info on a frame
     def drawDebug(self, img):
-        for i in range(len(self.lines)):
+        for i in range(5):
             line = self.lines[i]
-            if i in self.detectedHolds:
+            if self.detectedHolds[i]:
                 color = (255, 0, 0)
             else:
                 color = (0, 0, 255)
