@@ -9,8 +9,8 @@ if len(sys.argv) < 2:
     MODE = 0
 else:
     MODE = 1
-FRAME_SKIP_COUNT = 2
-WINDOW_NUM = 1
+FRAME_SKIP_COUNT = 1
+WINDOW_NUM = 2
 
 WINDOW_TITLE = 'Video'
 cv2.namedWindow(WINDOW_TITLE, cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO)
@@ -34,6 +34,11 @@ elif MODE == 1:
 while(isVideoOpen()):
     # Capture frame-by-frame
     ret, frame = readFrame()
+    frame = cv2.resize(frame,
+        (1280,720),
+        0, 
+        0, 
+        interpolation=cv2.INTER_NEAREST)
     if ret == True:
         guitar.count += 1
 

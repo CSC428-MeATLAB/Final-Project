@@ -244,17 +244,17 @@ class GuitarInfo:
             [targX, targY, targW, targH, targA] = self.targetStats[i]
 
             if not self.detectedHolds[i]:
-                if self.keysDown[i] and self.count - self.lastDetected[i] > 10:
+                if self.keysDown[i]:# and self.count - self.lastDetected[i] > 3:
                     self.keysDown[i] = False
                     self.keyboard.release(self.keys[i])
-                    print("{} up".format(i))
+                    #print("{} up".format(i))
 
             for note in self.detectedNotes[i]:
                 noteX, noteY, noteW, noteH = note
-                if noteY + noteH > targY:
+                if noteY + noteH > targY - 2.3*targH:
                     self.keysDown[i] = True
                     self.keyboard.press(self.keys[i])
-                    print("{} down".format(i))
+                    #print("{} down".format(i))
 
     # draw debug info on a frame
     def drawDebug(self, img):
