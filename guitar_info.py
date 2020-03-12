@@ -37,6 +37,7 @@ class GuitarInfo:
     samples = 10
     tstep = 0.01
     keys = ['a', 's', 'j', 'k', 'l']
+    delay = 5
 
     def __init__(self):
         self.lines = []       # [x1, y1, x2, y2]
@@ -49,6 +50,7 @@ class GuitarInfo:
         self.count = 0
         self.initiated = False
         self.detectedNotes = [[] for _ in range(5)]
+        self.keyQueue = [] # (frame num, key, true=push/false=release)
 
     # takes a BGR image
     # extracts info about target locations and guitar string lines
@@ -246,15 +248,22 @@ class GuitarInfo:
             if not self.detectedHolds[i]:
                 if self.keysDown[i]:# and self.count - self.lastDetected[i] > 3:
                     self.keysDown[i] = False
-                    self.keyboard.release(self.keys[i])
-                    #print("{} up".format(i))
+                    self.keyQueue.append((self.count + self.delay, i, False))
 
             for note in self.detectedNotes[i]:
                 noteX, noteY, noteW, noteH = note
                 if noteY + noteH > targY - 2.3*targH:
                     self.keysDown[i] = True
-                    self.keyboard.press(self.keys[i])
-                    #print("{} down".format(i))
+                    self.keyQueue.append((self.count + self.delay, i, True))
+        
+        while len(self.keyQueue) > 0 and self.keyQueue[0][0] <= self.count:
+            frame, key, press = self.keyQueue.pop(0)
+            if press:
+                # print("{} down".format(key))
+                self.keyboard.press(self.keys[key])
+            else:
+                # print("{} up".format(key))
+                self.keyboard.release(self.keys[key])
 
     # draw debug info on a frame
     def drawDebug(self, img):
