@@ -11,6 +11,17 @@ color_ranges = [
     [np.array([14,127,68]), np.array([20,255,198])]     # orange
 ]
 
+CROP_WIDTH = .4
+CROP_HEIGHT = .35
+
+# Load in a template
+template = cv.imread("notecenter.png", cv.IMREAD_GRAYSCALE)
+reg_temp_w, reg_temp_h = template.shape[::-1]
+
+# Load in a hammer note template
+ham_template = cv.imread("hammercenter.png", cv.IMREAD_GRAYSCALE)
+ham_temp_w, ham_temp_h = ham_template.shape[::-1]
+
 class GuitarInfo:
     stddevThreshold = 10
     saturationThreshold = 100
@@ -19,15 +30,16 @@ class GuitarInfo:
     keys = ['a', 's', 'j', 'k', 'l']
 
     def __init__(self):
-        self.lines = None       # [x1, y1, x2, y2]
-        self.targets = None     # [x, y] centroids of targets
-        self.targetStats = None # [x, y, width, height, area] of targets
+        self.lines = []       # [x1, y1, x2, y2]
+        self.targets = []     # [x, y] centroids of targets
+        self.targetStats = [] # [x, y, width, height, area] of targets
         self.detectedHolds = [False for _ in range(5)]
         self.lastDetected = [-100 for _ in range(5)]
         self.keysDown = [False for _ in range(5)]
         self.keyboard = Controller()
         self.count = 0
         self.initiated = False
+        self.rects = []
 
     # takes a BGR image
     # extracts info about target locations and guitar string lines
@@ -70,6 +82,10 @@ class GuitarInfo:
             self.targets.append(target)
             self.targetStats.append(stats)
 
+        if len(self.lines) != 5:
+            print("Error: found {} lines".format(len(self.lines)))
+            return
+
         line_start_y = line_start_y / len(self.lines)
 
         # adjust lines to only cover string
@@ -105,6 +121,67 @@ class GuitarInfo:
                 self.detectedHolds[i] = True
             else:
                 self.detectedHolds[i] = False
+
+    def detectNotes(self, img):
+        rect_list = []
+        # Compute image bounds for template matching
+        top_bound = int(img.shape[0] * (1-CROP_HEIGHT))
+        bottom_bound = int(img.shape[0] * 13.0/15)
+        left_bound = int(img.shape[1]/2 - img.shape[1] * (1-CROP_WIDTH)/2)
+        right_bound = int(img.shape[1]/2 + img.shape[1] * (1-CROP_WIDTH)/2)
+
+        # Crop image
+        crop_img = img[top_bound:bottom_bound , left_bound:right_bound]
+        gray_img = cv.cvtColor(crop_img, cv.COLOR_BGR2GRAY)
+
+        # Detect regular and hammer on notes
+        result = cv.matchTemplate(gray_img, template, cv.TM_CCOEFF_NORMED)
+        result2 = cv.matchTemplate(gray_img, ham_template, cv.TM_CCOEFF_NORMED)
+
+        # Filter down to notes we're sure about
+        loc = np.where(result >= 0.8)
+        loc = self._nonMaxSupp(loc, result)
+        loc2 = np.where(result2 >= 0.7)
+        loc2 = self._nonMaxSupp(loc2, result2)
+
+        # Add regular notes to the array
+        for pt in zip(*loc[::-1]):
+            subimg = gray_img[pt[1] + int(.33 * reg_temp_h) : pt[1] + int(.66 * reg_temp_h) , pt[0] + int(.33 * reg_temp_w) : pt[0] + int(.66 * reg_temp_w)]
+            center_shade = np.average(np.average(subimg, axis=0), axis=0)
+            # Make sure the center of the note is white (so we dont detect the bottom bar) 
+            if (center_shade > 190):
+                rect_list.append((pt[0] + left_bound, pt[1] + top_bound, reg_temp_w, reg_temp_h))
+
+        # Add hammer on notes to the array
+        for pt in zip(*loc2[::-1]):
+            subimg = gray_img[pt[1] + int(.33 * ham_temp_h) : pt[1] + int(.66 * ham_temp_h) , pt[0] + int(.33 * ham_temp_w) : pt[0] + int(.66 * ham_temp_w)]
+            center_shade = np.average(np.average(subimg, axis=0), axis=0)
+            # Make sure the center of the note is white (so we dont detect the bottom bar) 
+            if (center_shade > 190):
+                rect_list.append((pt[0] + left_bound, pt[1] + top_bound, ham_temp_w, ham_temp_h))
+        
+        self.rects = rect_list
+
+    def _nonMaxSupp(self, pts, img):
+        n = 2
+        newx = []
+        newy = []
+        # for each pixel
+        for pt in zip(*pts[::-1]):
+            x = pt[0]
+            y = pt[1]
+    
+            add = True
+            # for a 2n+1 * 2n+1 window
+            for i in range(x - n, x + n):
+                for j in range(y - n, y + n):
+                    if ( n<x<img.shape[1]-n and n<y<img.shape[0]-n and img[y][x] < img[j][i]):
+                        add = False
+            if add:
+                newx.append(x)
+                newy.append(y)
+        
+        return np.array([newy,newx])
 
     def _find_target(self, img, hsv_low, hsv_high):
         if hsv_low[0] > hsv_high[0]:
@@ -151,7 +228,7 @@ class GuitarInfo:
 
     # draw debug info on a frame
     def drawDebug(self, img):
-        for i in range(5):
+        for i in range(len(self.lines)):
             line = self.lines[i]
             if self.detectedHolds[i]:
                 color = (255, 0, 0)
@@ -161,4 +238,8 @@ class GuitarInfo:
 
         for targetStat in self.targetStats:
             [x, y, w, h, a] = targetStat
+            cv.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 3)
+        
+        for rects in self.rects:
+            x, y, w, h = rects
             cv.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 3)

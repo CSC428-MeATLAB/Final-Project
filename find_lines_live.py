@@ -5,8 +5,11 @@ from guitar_info import GuitarInfo
 import sys
 import mss
 
+if len(sys.argv) < 2:
+    MODE = 0
+else:
+    MODE = 1
 FRAME_SKIP_COUNT = 2
-MODE = 0
 WINDOW_NUM = 1
 
 WINDOW_TITLE = 'Video'
@@ -39,8 +42,9 @@ while(isVideoOpen()):
                 guitar.detectHolds(frame)
 
         if guitar.initiated:
-            guitar.drawDebug(frame)
             guitar.updateKeys()
+        guitar.detectNotes(frame)
+        guitar.drawDebug(frame)
 
         # Display the resulting frame
         cv2.imshow(WINDOW_TITLE,frame)
