@@ -6,7 +6,7 @@ import math
 # color ranges of targets
 color_ranges = [
     [np.array([54,127,63]), np.array([64,255,198])],    # green
-    [np.array([-4,127,77]), np.array([4,255,190])],     # red
+    [np.array([-5,127,60]), np.array([5,255,190])],     # red
     [np.array([26,127,77]), np.array([36,255,190])],    # yellow
     [np.array([102,127,77]), np.array([109,255,190])],  # blue
     [np.array([14,127,68]), np.array([20,255,198])]     # orange
@@ -182,12 +182,9 @@ class GuitarInfo:
                 p2 = np.array([line[2], line[3]])
                 d = np.abs(np.linalg.norm(np.cross(p2 - p1, p1-center)) / np.linalg.norm(p2 - p1))
                 if d < closestDist:
-                    print(i, d)
                     closestLine = i
                     closestDist = d
             self.detectedNotes[closestLine].append(rect)
-
-
 
     def _nonMaxSupp(self, pts, img):
         n = 2
@@ -243,15 +240,21 @@ class GuitarInfo:
         return lines[order[0]]
 
     def updateKeys(self):
-        for i in range(5):
-            if self.detectedHolds[i]:
-                if not self.keysDown[i]:
-                    self.keysDown[i] = True
-                    self.keyboard.press(self.keys[i])
-            else:
+        for i in range(len(self.lines)):
+            [targX, targY, targW, targH, targA] = self.targetStats[i]
+
+            if not self.detectedHolds[i]:
                 if self.keysDown[i] and self.count - self.lastDetected[i] > 10:
                     self.keysDown[i] = False
                     self.keyboard.release(self.keys[i])
+                    print("{} up".format(i))
+
+            for note in self.detectedNotes[i]:
+                noteX, noteY, noteW, noteH = note
+                if noteY + noteH > targY:
+                    self.keysDown[i] = True
+                    self.keyboard.press(self.keys[i])
+                    print("{} down".format(i))
 
     # draw debug info on a frame
     def drawDebug(self, img):

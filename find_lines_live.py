@@ -37,6 +37,14 @@ while(isVideoOpen()):
     if ret == True:
         guitar.count += 1
 
+        # Press Q on keyboard to  exit
+        key = cv2.waitKey(1)
+        if key == ord('q'):
+            break
+        if key == ord('l'):
+            guitar.extractInfo(frame)
+            print("Found info")
+
         if ((guitar.count % FRAME_SKIP_COUNT) == 0):
             if guitar.initiated:
                 guitar.detectHolds(frame)
@@ -48,14 +56,6 @@ while(isVideoOpen()):
 
         # Display the resulting frame
         cv2.imshow(WINDOW_TITLE,frame)
-
-        # Press Q on keyboard to  exit
-        key = cv2.waitKey(1)
-        if key == ord('q'):
-            break
-        if key == ord('l'):
-            guitar.extractInfo(frame)
-            print("Found info")
 
     # Break the loop
     else:
