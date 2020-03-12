@@ -1,6 +1,7 @@
 import cv2 as cv
 import numpy as np
 from pynput.keyboard import Controller
+import math
 
 # color ranges of targets
 color_ranges = [
@@ -9,6 +10,14 @@ color_ranges = [
     [np.array([26,127,77]), np.array([36,255,190])],    # yellow
     [np.array([102,127,77]), np.array([109,255,190])],  # blue
     [np.array([14,127,68]), np.array([20,255,198])]     # orange
+]
+
+note_colors = [
+    (0, 255, 0),
+    (0, 0, 255),
+    (0, 255, 255),
+    (255, 0, 0),
+    (0, 127, 255)
 ]
 
 CROP_WIDTH = .4
@@ -39,7 +48,7 @@ class GuitarInfo:
         self.keyboard = Controller()
         self.count = 0
         self.initiated = False
-        self.rects = []
+        self.detectedNotes = [[] for _ in range(5)]
 
     # takes a BGR image
     # extracts info about target locations and guitar string lines
@@ -160,7 +169,25 @@ class GuitarInfo:
             if (center_shade > 190):
                 rect_list.append((pt[0] + left_bound, pt[1] + top_bound, ham_temp_w, ham_temp_h))
         
-        self.rects = rect_list
+        # Determine which lane each note is in
+        self.detectedNotes = [[] for _ in range(5)]
+        for rect in rect_list:
+            x, y, w, h = rect
+            center = np.array([x + w / 2, y + h / 2])
+            closestLine = None
+            closestDist = math.inf
+            for i in range(len(self.lines)):
+                line = self.lines[i]
+                p1 = np.array([line[0], line[1]])
+                p2 = np.array([line[2], line[3]])
+                d = np.abs(np.linalg.norm(np.cross(p2 - p1, p1-center)) / np.linalg.norm(p2 - p1))
+                if d < closestDist:
+                    print(i, d)
+                    closestLine = i
+                    closestDist = d
+            self.detectedNotes[closestLine].append(rect)
+
+
 
     def _nonMaxSupp(self, pts, img):
         n = 2
@@ -240,6 +267,7 @@ class GuitarInfo:
             [x, y, w, h, a] = targetStat
             cv.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 3)
         
-        for rects in self.rects:
-            x, y, w, h = rects
-            cv.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 3)
+        for i in range(len(self.detectedNotes)):
+            for rect in self.detectedNotes[i]:
+                x, y, w, h = rect
+                cv.rectangle(img, (x, y), (x+w, y+h), note_colors[i], 3)
