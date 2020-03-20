@@ -4,6 +4,7 @@ import time
 from guitar_info import GuitarInfo
 import sys
 import mss
+import time
 
 if len(sys.argv) < 2:
     MODE = 0
@@ -30,6 +31,7 @@ elif MODE == 1:
     if (cap.isOpened()== False):
         print("Error opening video stream or file")
 
+prevTime = time.time()
 # Read until video is completed
 while(isVideoOpen()):
     # Capture frame-by-frame
@@ -41,27 +43,29 @@ while(isVideoOpen()):
         interpolation=cv2.INTER_NEAREST)
     if ret == True:
         guitar.count += 1
-
         # Press Q on keyboard to  exit
-        key = cv2.waitKey(1)
-        if key == ord('q'):
-            break
-        if key == ord('l'):
-            guitar.extractInfo(frame)
-            print("Found info")
-
-        if ((guitar.count % FRAME_SKIP_COUNT) == 0):
-            if guitar.initiated:
-                guitar.detectHolds(frame)
+        if not guitar.initiated:
+            key = cv2.waitKey(1)
+            if key == ord('q'):
+                break
+            if key == ord('l'):
+                guitar.extractInfo(frame)
+                print("Found info")
 
         if guitar.initiated:
+            guitar.detectHolds(frame)
+            guitar.detectNotes(frame)
             guitar.updateKeys()
-        guitar.detectNotes(frame)
-        guitar.drawDebug(frame)
-
+        #guitar.drawDebug(frame)
+        #cv2.imwrite(f'render/{guitar.count:05}.png', frame)
         # Display the resulting frame
-        cv2.imshow(WINDOW_TITLE,frame)
+        if not guitar.initiated:
+            cv2.imshow(WINDOW_TITLE,frame)
 
+        if guitar.count % 60 == 0:
+            curTime = time.time()
+            print(60 / (curTime - prevTime))
+            prevTime = curTime
     # Break the loop
     else:
         break
