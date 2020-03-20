@@ -36,11 +36,6 @@ prevTime = time.time()
 while(isVideoOpen()):
     # Capture frame-by-frame
     ret, frame = readFrame()
-    frame = cv2.resize(frame,
-        (1280,720),
-        0, 
-        0, 
-        interpolation=cv2.INTER_NEAREST)
     if ret == True:
         guitar.count += 1
         # Press Q on keyboard to  exit
@@ -56,8 +51,8 @@ while(isVideoOpen()):
             guitar.detectHolds(frame)
             guitar.detectNotes(frame)
             guitar.updateKeys()
-        #guitar.drawDebug(frame)
-        #cv2.imwrite(f'render/{guitar.count:05}.png', frame)
+            guitar.drawDebug(frame)
+        cv2.imwrite(f'render/{guitar.count:05}.jpg', frame)
         # Display the resulting frame
         if not guitar.initiated:
             cv2.imshow(WINDOW_TITLE,frame)
