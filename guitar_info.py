@@ -266,11 +266,14 @@ class GuitarInfo:
                 color = (0, 0, 255)
             cv.line(img, (line[0], line[1]), (line[2], line[3]), color, 3, cv.LINE_AA)
 
-        for targetStat in self.targetStats:
-            [x, y, w, h, a] = targetStat
-            cv.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 3)
+        for i in range(len(self.targetStats)):
+            [x, y, w, h, a] = self.targetStats[i]
+            if self.keysDown[i]:
+                cv.rectangle(img, (x, y), (x+w, y+h), (255, 0, 0), 3)
+            else:
+                cv.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 3)
         
         for i in range(len(self.detectedNotes)):
             for rect in self.detectedNotes[i]:
                 x, y, w, h = rect
-                cv.rectangle(img, (x, y), (x+w, y+h), note_colors[i], 3)
+                cv.rectangle(img, (x, y), (x+w, y+h), (255, 255, 255), 3)
